@@ -21,7 +21,11 @@ public class Board : MonoBehaviour
     private Dictionary<ElementType, Element> elementTypeMap;
     private LevelMap levelMap = new LevelMap();
 
+    private bool movedFloating = false;
+    private bool destroyedMatches = false;
+
     public static bool IsInputEnabled = true;
+
 
     public void Start()
     {
@@ -166,9 +170,7 @@ public class Board : MonoBehaviour
         }
         StartCoroutine(MoveToPosition(element.gameObject, otherElementPosition, () =>
         {
-            Normalize();
-            // TODO make sure it's called after all coroutines
-            IsInputEnabled = true;
+            StartCoroutine(Normalize());
         }));
     }
 
@@ -190,25 +192,29 @@ public class Board : MonoBehaviour
         }
     }
 
-    private void Normalize()
+    private IEnumerator Normalize()
     {
-        bool movedFloating = false;
-        bool destroyedMatches = false;
+        movedFloating = false;
+        destroyedMatches = false;
         do
         {
             // Step 1 - move floating elements down
-            movedFloating = MoveFloatingElements();
-            // Step 2 - find & destroy matches
-            destroyedMatches = DestroyMatches();
+            yield return StartCoroutine(MoveFloatingElements(() => {
+                // Step 2 - find & destroy matches
+                DestroyMatches();
+            }));
+            Debug.Log("End of dowhile");
         } while (movedFloating || destroyedMatches);
+        Debug.Log("Definitely after dowhile");
     }
 
-    private bool MoveFloatingElements()
+    private IEnumerator MoveFloatingElements(Action onEnd)
     {
-        bool movedElement = false;
+        movedFloating = false;
+        List<Coroutine> coroutineList = new List<Coroutine>();
         for (int i = 0; i < allElements.GetLength(0); i++) // columns
         {
-            for (int j = 1; j < allElements.GetLength(1); j++) // rows
+            for (int j = 1; j < allElements.GetLength(1); j++) // rows starting with the 2nd one
             {
                 var element = allElements[i, j];
                 if (element != null && allElements[i, j - 1] == null)
@@ -216,24 +222,29 @@ public class Board : MonoBehaviour
                     allElements[i, j - 1] = element;
                     allElements[i, j] = null;
                     element.Row -= 1;
-                    // Can't destroy element while it's moving
-                    element.CanDestroy = false;
                     // Move floating element down
-                    StartCoroutine(MoveToPosition(
+                    coroutineList.Add(StartCoroutine(MoveToPosition(
                         element.gameObject,
-                        new Vector2(element.transform.position.x, element.transform.position.y - 1),
-                        () => { element.CanDestroy = true; }
-                    ));
-                    movedElement = true;
+                        new Vector2(element.transform.position.x, j - 1 - (float)levelMap.Rows / 2)
+                    )));
+                    movedFloating = true;
                 }
             }
         }
-        return movedElement;
+        // Wait for all coroutines to finish
+        foreach (var coroutine in coroutineList)
+        {
+            yield return coroutine;
+        }
+        Debug.Log("After moving floaters");
+        onEnd.Invoke();
+        Debug.Log("After destroying matches");
+        yield return null;
     }
 
-    private bool DestroyMatches()
+    private void DestroyMatches()
     {
-        bool destroyedMatches = false;
+        destroyedMatches = false;
         List<Element> allElementsToDestroy = new List<Element>(); // storage for definite matches
         List<Element> currentElementsToDestroy = new List<Element>(); // storage for potential matches
         // Find in columns
@@ -306,18 +317,7 @@ public class Board : MonoBehaviour
         foreach (var elementToDestroy in allElementsToDestroy)
         {
             allElements[elementToDestroy.Column, elementToDestroy.Row] = null;
-            StartCoroutine(DestroyWhenAvailable(elementToDestroy));
+            Destroy(elementToDestroy.gameObject);
         }
-        return destroyedMatches;
-    }
-
-    // Wait till floating elements have all moved down before destroying them
-    private IEnumerator DestroyWhenAvailable(Element element)
-    {
-        while (!element.CanDestroy)
-        {
-            yield return null;
-        }
-        Destroy(element.gameObject);
     }
 }
