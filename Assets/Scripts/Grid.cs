@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public enum ElementType
@@ -166,6 +167,7 @@ public class Grid : MonoBehaviour
         StartCoroutine(MoveToPosition(element.gameObject, otherElementPosition, () =>
         {
             Normalize();
+            // TODO make sure it's called after all coroutines
             IsInputEnabled = true;
         }));
     }
@@ -190,14 +192,15 @@ public class Grid : MonoBehaviour
 
     private void Normalize()
     {
-        // TODO while there are floating elements / 3/more elems in a row/column - check
-        bool movedElement = false;
+        bool movedFloating = false;
+        bool destroyedMatches = false;
         do
         {
             // Step 1 - move floating elements down
-            movedElement = MoveFloatingElements();
-            // TODO step 2 - find & destroy matches
-        } while (movedElement);
+            movedFloating = MoveFloatingElements();
+            // Step 2 - find & destroy matches
+            destroyedMatches = DestroyMatches();
+        } while (movedFloating || destroyedMatches);
     }
 
     private bool MoveFloatingElements()
@@ -213,14 +216,108 @@ public class Grid : MonoBehaviour
                     allElements[i, j - 1] = element;
                     allElements[i, j] = null;
                     element.Row -= 1;
+                    // Can't destroy element while it's moving
+                    element.CanDestroy = false;
+                    // Move floating element down
                     StartCoroutine(MoveToPosition(
                         element.gameObject,
-                        new Vector2(element.transform.position.x, element.transform.position.y - 1)
+                        new Vector2(element.transform.position.x, element.transform.position.y - 1),
+                        () => { element.CanDestroy = true; }
                     ));
                     movedElement = true;
                 }
             }
         }
         return movedElement;
+    }
+
+    private bool DestroyMatches()
+    {
+        bool destroyedMatches = false;
+        List<Element> allElementsToDestroy = new List<Element>(); // storage for definite matches
+        List<Element> currentElementsToDestroy = new List<Element>(); // storage for potential matches
+        // Find in columns
+        for (int i = 0; i < allElements.GetLength(0); i++) // columns
+        {
+            var firstElementIndex = 0;
+            do
+            {
+                Element firstElement = allElements[i, firstElementIndex];
+                if (firstElement != null)
+                {
+                    currentElementsToDestroy.Add(firstElement);
+                    // Start with one element and go through the others in that column until finding a null / different type 
+                    for (int j = firstElementIndex + 1; j < allElements.GetLength(1); j++) // rows
+                    {
+                        firstElementIndex = j;
+                        var nextElement = allElements[i, j];
+                        if (nextElement == null || nextElement.Type != firstElement.Type) break;
+                        currentElementsToDestroy.Add(nextElement);
+                    }
+                    // If found >= 3 matches in a column
+                    if (currentElementsToDestroy.Count >= 3)
+                    {
+                        allElementsToDestroy.AddRange(currentElementsToDestroy);
+                    }
+                    currentElementsToDestroy.Clear();
+                }
+                else
+                {
+                    firstElementIndex += 1;
+                }
+            } while (firstElementIndex < allElements.GetLength(1) - 2);
+        }
+        // Find in rows
+        for (int j = 0; j < allElements.GetLength(1); j++) // rows
+        {
+            var firstElementIndex = 0;
+            do
+            {
+                Element firstElement = allElements[firstElementIndex, j];
+                if (firstElement != null)
+                {
+                    currentElementsToDestroy.Add(firstElement);
+                    // Start with one element and go through the others in that row until finding a null / different type 
+                    for (int i = firstElementIndex + 1; i < allElements.GetLength(0); i++) // columns
+                    {
+                        firstElementIndex = i;
+                        var nextElement = allElements[i, j];
+                        if (nextElement == null || nextElement.Type != firstElement.Type) break;
+                        currentElementsToDestroy.Add(nextElement);
+                    }
+                    // If found >= 3 matches in a row
+                    if (currentElementsToDestroy.Count >= 3)
+                    {
+                        allElementsToDestroy.AddRange(currentElementsToDestroy);
+                    }
+                    currentElementsToDestroy.Clear();
+                }
+                else
+                {
+                    firstElementIndex += 1;
+                }
+            } while (firstElementIndex < allElements.GetLength(0) - 2);
+        }
+        // After finding all elements to destroy
+        if (allElementsToDestroy.Any())
+        {
+            destroyedMatches = true;
+        }
+        foreach (var elementToDestroy in allElementsToDestroy)
+        {
+            allElements[elementToDestroy.Column, elementToDestroy.Row] = null;
+            StartCoroutine(DestroyWhenAvailable(elementToDestroy));
+        }
+        return destroyedMatches;
+    }
+
+    // Wait till floating elements have all moved down before destroying them
+    private IEnumerator DestroyWhenAvailable(Element element)
+    {
+        while (!element.CanDestroy)
+        {
+            yield return null;
+        }
+        Destroy(element.gameObject);
     }
 }

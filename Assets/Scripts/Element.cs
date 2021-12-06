@@ -8,6 +8,7 @@ public class Element : MonoBehaviour
     public int Row;
 
     public float SwipeAngle = 0;
+    public bool CanDestroy = true;
 
     private Grid grid;
     private Vector2 firstTouchPosition;
