@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 4438618228972907701}
   - component: {fileID: 1961409221441786089}
   - component: {fileID: 8872156024181499420}
+  - component: {fileID: 5719875766788929982}
   m_Layer: 0
   m_Name: WaterElement
   m_TagString: Untagged
@@ -97,6 +98,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Type: 2
+  Animator: {fileID: 5719875766788929982}
+  Column: 0
+  Row: 0
+  SwipeAngle: 0
 --- !u!61 &8872156024181499420
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -123,3 +128,22 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 1.1239893, y: 1.2692661}
   m_EdgeRadius: 0
+--- !u!95 &5719875766788929982
+Animator:
+  serializedVersion: 3
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4438618228972907703}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 881c69f83a5d5d840a831993abd2bf28, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorControllerStateOnDisable: 0

@@ -4,9 +4,10 @@ using UnityEngine;
 public class Element : MonoBehaviour
 {
     public ElementType Type;
+    public Animator Animator;
+
     public int Column;
     public int Row;
-
     public float SwipeAngle = 0;
 
     private Board grid;

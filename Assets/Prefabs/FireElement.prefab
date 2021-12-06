@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 2915799419064124074}
   - component: {fileID: 7594989495505090085}
   - component: {fileID: 7583048007228983687}
+  - component: {fileID: 4038997645684751618}
   m_Layer: 0
   m_Name: FireElement
   m_TagString: Untagged
@@ -97,6 +98,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Type: 1
+  Animator: {fileID: 4038997645684751618}
+  Column: 0
+  Row: 0
+  SwipeAngle: 0
 --- !u!61 &7583048007228983687
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -123,3 +128,22 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 1.1239893, y: 1.2692661}
   m_EdgeRadius: 0
+--- !u!95 &4038997645684751618
+Animator:
+  serializedVersion: 3
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2915799419064124072}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: c9de55cec8ced7c40895280bd158d755, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorControllerStateOnDisable: 0

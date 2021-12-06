@@ -199,16 +199,13 @@ public class Board : MonoBehaviour
         do
         {
             // Step 1 - move floating elements down
-            yield return StartCoroutine(MoveFloatingElements(() => {
-                // Step 2 - find & destroy matches
-                DestroyMatches();
-            }));
+            yield return StartCoroutine(MoveFloatingElements());
             Debug.Log("End of dowhile");
         } while (movedFloating || destroyedMatches);
         Debug.Log("Definitely after dowhile");
     }
 
-    private IEnumerator MoveFloatingElements(Action onEnd)
+    private IEnumerator MoveFloatingElements()
     {
         movedFloating = false;
         List<Coroutine> coroutineList = new List<Coroutine>();
@@ -237,12 +234,13 @@ public class Board : MonoBehaviour
             yield return coroutine;
         }
         Debug.Log("After moving floaters");
-        onEnd.Invoke();
+        // Step 2 - find & destroy matches
+        yield return StartCoroutine(DestroyMatches());
         Debug.Log("After destroying matches");
         yield return null;
     }
 
-    private void DestroyMatches()
+    private IEnumerator DestroyMatches()
     {
         destroyedMatches = false;
         List<Element> allElementsToDestroy = new List<Element>(); // storage for definite matches
@@ -314,10 +312,30 @@ public class Board : MonoBehaviour
         {
             destroyedMatches = true;
         }
+        List<Coroutine> coroutineList = new List<Coroutine>();
         foreach (var elementToDestroy in allElementsToDestroy)
         {
             allElements[elementToDestroy.Column, elementToDestroy.Row] = null;
-            Destroy(elementToDestroy.gameObject);
+            elementToDestroy.Animator.SetTrigger("Destroy");
+            // Start coroutine that waits for animation to get to "Destroyed" state
+            // TODO dofor sets of matches?
+            coroutineList.Add(StartCoroutine(WaitForAnimatorState(elementToDestroy.Animator, "Destroyed", () => {
+                Destroy(elementToDestroy.gameObject);
+            })));
         }
+        foreach (var coroutine in coroutineList)
+        {
+            yield return coroutine;
+        }
+        yield return null;
+    }
+
+    private IEnumerator WaitForAnimatorState(Animator animator, string state, Action onEnd)
+    {
+        while (!animator.GetCurrentAnimatorStateInfo(0).IsName(state))
+        {
+            yield return null;
+        }
+        onEnd.Invoke();
     }
 }
