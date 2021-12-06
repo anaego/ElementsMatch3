@@ -6,12 +6,6 @@ using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
 
-public enum ElementType
-{
-    None,
-    Fire,
-    Water
-}
 
 public class Board : MonoBehaviour
 {
@@ -26,12 +20,16 @@ public class Board : MonoBehaviour
 
     private bool movedFloating = false;
     private bool destroyedMatches = false;
+    private bool changedWhileNormalizing = false;
+
+    private const float zDelta = 0.1f;
 
     public static bool IsInputEnabled = true;
 
 
     private void Start()
     {
+        // An example of level creation:
         //levelMap.Columns = 4;
         //levelMap.TypeMap = new ElementType[4, 6] {
         //    { ElementType.Water, ElementType.Water, ElementType.Fire, ElementType.Water, ElementType.Water, ElementType.None },
@@ -52,9 +50,16 @@ public class Board : MonoBehaviour
     {
         // Load level from a file
         levelMap = LoadLevel(level);
-        if (levelMap == null) return;
-        allElements = new Element[levelMap.Columns, levelMap.Rows];
-        Setup();
+        if (levelMap == null)
+        {
+            currentLevel = 1;
+            StartLevel(currentLevel);
+        }
+        else
+        {
+            allElements = new Element[levelMap.Columns, levelMap.Rows];
+            Setup();
+        }
     }
 
     private void SaveLevel(LevelMap levelMap, int levelNumber)
@@ -84,7 +89,7 @@ public class Board : MonoBehaviour
         }
         else
         {
-            Debug.LogError("File not found");
+            Debug.LogWarning("File not found");
             return null;
         }
         BinaryFormatter bf = new BinaryFormatter();
@@ -95,6 +100,7 @@ public class Board : MonoBehaviour
 
     private void Setup()
     {
+        float z = 0;
         for (int i = 0; i <= levelMap.Columns; i++)
         {
             if (i > levelMap.TypeMap.GetLength(0) - 1) break;
@@ -106,23 +112,25 @@ public class Board : MonoBehaviour
                 {
                     var newElement = Instantiate(
                         elementTypeMap[elementType],
-                        new Vector2(
+                        new Vector3(
                             i - (float)levelMap.Columns / 2 + xOffset,
-                            j - (float)levelMap.Rows / 2),
+                            j - (float)levelMap.Rows / 2,
+                            z),
                         Quaternion.identity);
                     newElement.Setup(this, i, j);
                     allElements[i, j] = newElement;
                 }
+                // Change z value of elems so that correct ones look on top
+                z -= zDelta;
             }
         }
     }
 
     internal void SwipeElement(Element element, float swipeAngle)
     {
-        // TODO change z value of elems so that correct ones look on top
         Element otherElement = null;
-        Vector2 elementPosition = element.transform.position;
-        Vector2 otherElementPosition = element.transform.position;
+        Vector3 elementPosition = element.transform.position;
+        Vector3 otherElementPosition = element.transform.position;
         // Move right
         if (swipeAngle > -45 && swipeAngle <= 45)
         {
@@ -139,7 +147,7 @@ public class Board : MonoBehaviour
             }
             else
             {
-                otherElementPosition = new Vector2(elementPosition.x + 1, elementPosition.y);
+                otherElementPosition = new Vector3(elementPosition.x + 1, elementPosition.y, elementPosition.z);
             }
             element.Column += 1;
             allElements[element.Column, element.Row] = element;
@@ -182,7 +190,7 @@ public class Board : MonoBehaviour
             }
             else
             {
-                otherElementPosition = new Vector2(elementPosition.x - 1, elementPosition.y);
+                otherElementPosition = new Vector3(elementPosition.x - 1, elementPosition.y, elementPosition.z);
             }
             element.Column -= 1;
             allElements[element.Column, element.Row] = element;
@@ -204,11 +212,11 @@ public class Board : MonoBehaviour
             }
             else
             {
-                otherElementPosition = new Vector2(elementPosition.x, elementPosition.y - 1);
+                otherElementPosition = new Vector3(elementPosition.x, elementPosition.y - 1, elementPosition.z);
             }
             element.Row -= 1;
             allElements[element.Column, element.Row] = element;
-            allElements[element.Column, element.Row] = otherElement;
+            allElements[element.Column, element.Row + 1] = otherElement;
         }
         // Actually visibly move elements
         if (otherElement != null)
@@ -222,7 +230,7 @@ public class Board : MonoBehaviour
         }));
     }
 
-    private IEnumerator MoveToPosition(GameObject objectToMove, Vector2 newPosition, Action onEnd = null, float time = 0.2f)
+    private IEnumerator MoveToPosition(GameObject objectToMove, Vector3 newPosition, Action onEnd = null, float time = 0.2f)
     {
         var elapsedTime = 0f;
         Vector2 startingPosition = objectToMove.transform.position;
@@ -242,18 +250,23 @@ public class Board : MonoBehaviour
 
     private IEnumerator Normalize()
     {
-        movedFloating = false;
-        destroyedMatches = false;
         do
         {
+            changedWhileNormalizing = false;
             // Step 1 - move floating elements down
-            yield return StartCoroutine(MoveFloatingElements());
-            Debug.Log("End of dowhile");
-        } while (movedFloating || destroyedMatches);
-        Debug.Log("Definitely after dowhile");
+            do
+            {
+                movedFloating = false;
+                yield return StartCoroutine(MoveFloatingElements());
+            } while (movedFloating);
+            // Step 2 - find & destroy matches
+            do
+            {
+                destroyedMatches = false;
+                yield return StartCoroutine(DestroyMatches());
+            } while (destroyedMatches);
+        } while (changedWhileNormalizing);
         IsInputEnabled = true;
-        // TODO get rid of these?
-        yield return null;
     }
 
     private IEnumerator MoveFloatingElements()
@@ -273,9 +286,13 @@ public class Board : MonoBehaviour
                     // Move floating element down
                     coroutineList.Add(StartCoroutine(MoveToPosition(
                         element.gameObject,
-                        new Vector2(element.transform.position.x, j - 1 - (float)levelMap.Rows / 2)
+                        new Vector3(
+                            element.transform.position.x,
+                            j - 1 - (float)levelMap.Rows / 2,
+                            0 - zDelta * (allElements.GetLength(0) * i + j))
                     )));
                     movedFloating = true;
+                    changedWhileNormalizing = true;
                 }
             }
         }
@@ -284,16 +301,10 @@ public class Board : MonoBehaviour
         {
             yield return coroutine;
         }
-        Debug.Log("After moving floaters");
-        // Step 2 - find & destroy matches
-        yield return StartCoroutine(DestroyMatches());
-        Debug.Log("After destroying matches");
-        yield return null;
     }
 
     private IEnumerator DestroyMatches()
     {
-        destroyedMatches = false;
         List<Element> allElementsToDestroy = new List<Element>(); // storage for definite matches
         List<Element> currentElementsToDestroy = new List<Element>(); // storage for potential matches
         // Find in columns
@@ -362,24 +373,24 @@ public class Board : MonoBehaviour
         if (allElementsToDestroy.Any())
         {
             destroyedMatches = true;
-        }
-        List<Coroutine> coroutineList = new List<Coroutine>();
-        foreach (var elementToDestroy in allElementsToDestroy)
-        {
-            allElements[elementToDestroy.Column, elementToDestroy.Row] = null;
-            elementToDestroy.Animator.SetTrigger("Destroy");
-            // Start coroutine that waits for animation to get to "Destroyed" state
-            coroutineList.Add(StartCoroutine(WaitForAnimatorState(elementToDestroy.Animator, "Destroyed", () =>
+            changedWhileNormalizing = true;
+            List<Coroutine> coroutineList = new List<Coroutine>();
+            foreach (var elementToDestroy in allElementsToDestroy)
             {
-                Destroy(elementToDestroy.gameObject);
-            })));
+                allElements[elementToDestroy.Column, elementToDestroy.Row] = null;
+                elementToDestroy.Animator.SetTrigger("Destroy");
+                // Start coroutine that waits for animation to get to "Destroyed" state
+                coroutineList.Add(StartCoroutine(WaitForAnimatorState(elementToDestroy.Animator, "Destroyed", () =>
+                {
+                    Destroy(elementToDestroy.gameObject);
+                })));
+            }
+            foreach (var coroutine in coroutineList)
+            {
+                yield return coroutine;
+            }
+            TryStartNextLevel();
         }
-        foreach (var coroutine in coroutineList)
-        {
-            yield return coroutine;
-        }
-        TryStartNextLevel();
-        yield return null;
     }
 
     private IEnumerator WaitForAnimatorState(Animator animator, string state, Action onEnd)
