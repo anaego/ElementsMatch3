@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
 
 public enum ElementType
@@ -20,6 +22,7 @@ public class Board : MonoBehaviour
     private float xOffset = 0.5f;
     private Dictionary<ElementType, Element> elementTypeMap;
     private LevelMap levelMap = new LevelMap();
+    private int currentLevel = 1;
 
     private bool movedFloating = false;
     private bool destroyedMatches = false;
@@ -27,22 +30,67 @@ public class Board : MonoBehaviour
     public static bool IsInputEnabled = true;
 
 
-    public void Start()
+    private void Start()
     {
-        // TODO load from a file
-        levelMap.TypeMap = new ElementType[5, 2] {
-            { ElementType.Water, ElementType.Water },
-            { ElementType.None, ElementType.None },
-            { ElementType.Water, ElementType.Fire },
-            { ElementType.Fire, ElementType.None },
-            { ElementType.Fire, ElementType.None }
-        };
-        allElements = new Element[levelMap.Columns, levelMap.Rows];
+        //levelMap.Columns = 4;
+        //levelMap.TypeMap = new ElementType[4, 6] {
+        //    { ElementType.Water, ElementType.Water, ElementType.Fire, ElementType.Water, ElementType.Water, ElementType.None },
+        //    { ElementType.Fire, ElementType.Fire, ElementType.Water, ElementType.Water, ElementType.Fire, ElementType.Water },
+        //    { ElementType.Water, ElementType.Water, ElementType.Fire, ElementType.None, ElementType.None, ElementType.None },
+        //    { ElementType.Water, ElementType.Water, ElementType.Fire, ElementType.Water, ElementType.None, ElementType.None }
+        //};
+        //SaveLevel(levelMap, 3);
+
         elementTypeMap = new Dictionary<ElementType, Element> {
             { ElementType.Fire, FireElementPrefab },
             { ElementType.Water, WaterElementPrefab }
         };
+        StartLevel(currentLevel);
+    }
+
+    private void StartLevel(int level)
+    {
+        // Load level from a file
+        levelMap = LoadLevel(level);
+        if (levelMap == null) return;
+        allElements = new Element[levelMap.Columns, levelMap.Rows];
         Setup();
+    }
+
+    private void SaveLevel(LevelMap levelMap, int levelNumber)
+    {
+        string destination = Application.persistentDataPath + $"/level{levelNumber}.dat";
+        FileStream file;
+        if (File.Exists(destination))
+        {
+            file = File.OpenWrite(destination);
+        }
+        else
+        {
+            file = File.Create(destination);
+        }
+        BinaryFormatter binaryFormatter = new BinaryFormatter();
+        binaryFormatter.Serialize(file, levelMap);
+        file.Close();
+    }
+
+    public LevelMap LoadLevel(int levelNumber)
+    {
+        string destination = Application.persistentDataPath + $"/level{levelNumber}.dat";
+        FileStream file;
+        if (File.Exists(destination))
+        {
+            file = File.OpenRead(destination);
+        }
+        else
+        {
+            Debug.LogError("File not found");
+            return null;
+        }
+        BinaryFormatter bf = new BinaryFormatter();
+        LevelMap loadedLevelMap = (LevelMap)bf.Deserialize(file);
+        file.Close();
+        return loadedLevelMap;
     }
 
     private void Setup()
@@ -203,6 +251,9 @@ public class Board : MonoBehaviour
             Debug.Log("End of dowhile");
         } while (movedFloating || destroyedMatches);
         Debug.Log("Definitely after dowhile");
+        IsInputEnabled = true;
+        // TODO get rid of these?
+        yield return null;
     }
 
     private IEnumerator MoveFloatingElements()
@@ -318,8 +369,8 @@ public class Board : MonoBehaviour
             allElements[elementToDestroy.Column, elementToDestroy.Row] = null;
             elementToDestroy.Animator.SetTrigger("Destroy");
             // Start coroutine that waits for animation to get to "Destroyed" state
-            // TODO dofor sets of matches?
-            coroutineList.Add(StartCoroutine(WaitForAnimatorState(elementToDestroy.Animator, "Destroyed", () => {
+            coroutineList.Add(StartCoroutine(WaitForAnimatorState(elementToDestroy.Animator, "Destroyed", () =>
+            {
                 Destroy(elementToDestroy.gameObject);
             })));
         }
@@ -327,6 +378,7 @@ public class Board : MonoBehaviour
         {
             yield return coroutine;
         }
+        TryStartNextLevel();
         yield return null;
     }
 
@@ -337,5 +389,52 @@ public class Board : MonoBehaviour
             yield return null;
         }
         onEnd.Invoke();
+    }
+
+    private void TryStartNextLevel()
+    {
+        bool allDestroyed = true;
+        for (int i = 0; i < allElements.GetLength(0); i++)
+        {
+            for (int j = 0; j < allElements.GetLength(1); j++)
+            {
+                if (allElements[i, j] != null)
+                {
+                    allDestroyed = false;
+                    break;
+                }
+            }
+            if (!allDestroyed)
+            {
+                break;
+            }
+        }
+        if (allDestroyed)
+        {
+            StartNextLevel();
+        }
+    }
+
+    private void StartNextLevel()
+    {
+        currentLevel += 1;
+        StartLevel(currentLevel);
+    }
+
+    // Assigned to the "next" button
+    public void StartCleanNextLevel()
+    {
+        for (int i = 0; i < allElements.GetLength(0); i++)
+        {
+            for (int j = 0; j < allElements.GetLength(1); j++)
+            {
+                if (allElements[i, j] != null)
+                {
+                    Destroy(allElements[i, j].gameObject);
+                }
+            }
+        }
+        currentLevel += 1;
+        StartLevel(currentLevel);
     }
 }
