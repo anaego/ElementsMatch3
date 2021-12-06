@@ -10,11 +10,11 @@ public class Element : MonoBehaviour
     public float SwipeAngle = 0;
     public bool CanDestroy = true;
 
-    private Grid grid;
+    private Board grid;
     private Vector2 firstTouchPosition;
     private Vector2 finalTouchPosition;
 
-    public void Setup(Grid grid, int column, int row)
+    public void Setup(Board grid, int column, int row)
     {
         this.grid = grid;
         Column = column;
@@ -28,8 +28,8 @@ public class Element : MonoBehaviour
 
     private void OnMouseUp()
     {
-        if (!Grid.IsInputEnabled) return;
-        Grid.IsInputEnabled = false;
+        if (!Board.IsInputEnabled) return;
+        Board.IsInputEnabled = false;
         finalTouchPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         SwipeAngle =
             Mathf.Atan2(

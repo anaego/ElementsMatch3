@@ -217,7 +217,7 @@ GameObject:
   - component: {fileID: 689132627}
   - component: {fileID: 689132626}
   m_Layer: 0
-  m_Name: Grid
+  m_Name: Board
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -232,11 +232,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 689132625}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4e6a44a86c551294d99e490a772262bf, type: 3}
+  m_Script: {fileID: 11500000, guid: 0ba434ee2162b604091fa483731d4bf6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Columns: 5
-  Rows: 6
   FireElementPrefab: {fileID: 7594989495505090085, guid: c7e74d44e535c2e48a5ffaee05571a15, type: 3}
   WaterElementPrefab: {fileID: 1961409221441786089, guid: 2dec25e53084cd147a584adb01ceeb62, type: 3}
 --- !u!4 &689132627

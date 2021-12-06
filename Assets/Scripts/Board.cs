@@ -11,7 +11,7 @@ public enum ElementType
     Water
 }
 
-public class Grid : MonoBehaviour
+public class Board : MonoBehaviour
 {
     public Element FireElementPrefab;
     public Element WaterElementPrefab;
