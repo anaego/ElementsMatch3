@@ -64,7 +64,7 @@ public class Grid : MonoBehaviour
         }
     }
 
-    internal void MoveElement(Element element, float swipeAngle)
+    internal void SwipeElement(Element element, float swipeAngle)
     {
         // TODO change z value of elems so that correct ones look on top
         Element otherElement = null;
@@ -155,7 +155,7 @@ public class Grid : MonoBehaviour
             }
             element.Row -= 1;
             allElements[element.Column, element.Row] = element;
-            allElements[element.Column, element.Row + 1] = otherElement;
+            allElements[element.Column, element.Row] = otherElement;
         }
         // Actually visibly move elements
         if (otherElement != null)
@@ -163,9 +163,10 @@ public class Grid : MonoBehaviour
             otherElementPosition = otherElement.transform.position;
             StartCoroutine(MoveToPosition(otherElement.gameObject, elementPosition));
         }
-        StartCoroutine(MoveToPosition(element.gameObject, otherElementPosition, () => {
+        StartCoroutine(MoveToPosition(element.gameObject, otherElementPosition, () =>
+        {
+            Normalize();
             IsInputEnabled = true;
-            // TODO normalize map
         }));
     }
 
@@ -185,5 +186,41 @@ public class Grid : MonoBehaviour
         {
             onEnd.Invoke();
         }
+    }
+
+    private void Normalize()
+    {
+        // TODO while there are floating elements / 3/more elems in a row/column - check
+        bool movedElement = false;
+        do
+        {
+            // Step 1 - move floating elements down
+            movedElement = MoveFloatingElements();
+            // TODO step 2 - find & destroy matches
+        } while (movedElement);
+    }
+
+    private bool MoveFloatingElements()
+    {
+        bool movedElement = false;
+        for (int i = 0; i < allElements.GetLength(0); i++) // columns
+        {
+            for (int j = 1; j < allElements.GetLength(1); j++) // rows
+            {
+                var element = allElements[i, j];
+                if (element != null && allElements[i, j - 1] == null)
+                {
+                    allElements[i, j - 1] = element;
+                    allElements[i, j] = null;
+                    element.Row -= 1;
+                    StartCoroutine(MoveToPosition(
+                        element.gameObject,
+                        new Vector2(element.transform.position.x, element.transform.position.y - 1)
+                    ));
+                    movedElement = true;
+                }
+            }
+        }
+        return movedElement;
     }
 }

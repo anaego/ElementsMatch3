@@ -35,6 +35,6 @@ public class Element : MonoBehaviour
                 finalTouchPosition.y - firstTouchPosition.y,
                 finalTouchPosition.x - firstTouchPosition.x)
             * 180 / Mathf.PI;
-        grid.MoveElement(this, SwipeAngle);
+        grid.SwipeElement(this, SwipeAngle);
     }
 }
